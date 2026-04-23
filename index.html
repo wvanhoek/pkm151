@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pokemon 151</title>
+</head>
+<body style="background:#111;color:#fff;padding:10px;font-family:sans-serif;">
+<h2 style="color:#FFD700;">Pokemon 151 Checklist</h2>
+<p id="status">Starting...</p>
+<div id="grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;"></div>
+<script>
+document.getElementById('status').textContent = 'Step 1: JS running';
+
+var cards = [
+[“003”,“Venusaur ex”,502554],
+[“011”,“Metapod”,502560],
+[“018”,“Pidgeot ex”,516357],
+[“038”,“Ninetales ex”,516072],
+[“065”,“Alakazam ex”,516381],
+[“076”,“Golem ex”,516574],
+[“091”,“Cloyster”,516637],
+[“094”,“Gengar”,516663],
+[“106”,“Hitmonlee”,516675],
+[“124”,“Jynx ex”,516687],
+[“134”,“Vaporeon”,516697],
+[“144”,“Articuno”,516711],
+[“151”,“Mew ex”,516720],
+[“155”,“Big Air Balloon”,516724],
+[“168”,“Ivysaur IR”,516998],
+[“172”,“Caterpie IR”,517002],
+[“174”,“Pikachu IR”,513721],
+[“177”,“Machoke IR”,517007],
+[“178”,“Tangela IR”,517008],
+[“179”,“Mr Mime IR”,517009],
+[“180”,“Omanyte IR”,517010],
+[“182”,“Venusaur ex FA”,517037],
+[“183”,“Charizard ex FA”,517017],
+[“184”,“Blastoise ex FA”,517018],
+[“185”,“Arbok ex FA”,517019],
+[“186”,“Ninetales ex FA”,517020],
+[“187”,“Wigglytuff ex FA”,517038],
+[“188”,“Alakazam ex FA”,517039],
+[“190”,“Zapdos ex FA”,517041],
+[“191”,“Mew ex FA”,517042],
+[“193”,“Daisys Help FA”,517043],
+[“194”,“Erikas Invitation FA”,517044],
+[“195”,“Giovannis FA”,517045],
+[“197”,“Venusaur ex SIR”,517046],
+[“201”,“Alakazam ex SIR”,517047],
+[“203”,“Erikas Invitation SIR”,517049],
+[“204”,“Giovannis SIR”,517050],
+[“205”,“Mew ex Gold”,517051],
+[“206”,“Switch Gold”,517052]
+];
+
+document.getElementById(‘status’).textContent = ’Step 2: Cards loaded: ’ + cards.length;
+
+var grid = document.getElementById(‘grid’);
+var found = {};
+try { found = JSON.parse(localStorage.getItem(‘found’) || ‘{}’); } catch(e) {}
+
+for (var i = 0; i < cards.length; i++) {
+var nr = cards[i][0];
+var name = cards[i][1];
+var pid = cards[i][2];
+
+var div = document.createElement(‘div’);
+div.style.cssText = ’border-radius:8px;overflow:hidden;cursor:pointer;border:3px solid ’ + (found[nr] ? ‘#22c55e’ : ‘#333’) + ‘;’;
+div.setAttribute(‘data-nr’, nr);
+
+var img = document.createElement(‘img’);
+img.src = ‘https://product-images.tcgplayer.com/fit-in/400x558/’ + pid + ‘.jpg’;
+img.style.cssText = ‘width:100%;display:block;’;
+img.alt = name;
+
+var label = document.createElement(‘div’);
+label.style.cssText = ‘padding:4px;font-size:10px;background:#222;text-align:center;’;
+label.textContent = nr + ’ ’ + name;
+
+div.appendChild(img);
+div.appendChild(label);
+
+div.onclick = function() {
+var n = this.getAttribute(‘data-nr’);
+if (found[n]) { delete found[n]; this.style.borderColor = ‘#333’; }
+else { found[n] = 1; this.style.borderColor = ‘#22c55e’; }
+try { localStorage.setItem(‘found’, JSON.stringify(found)); } catch(e) {}
+};
+
+grid.appendChild(div);
+}
+
+document.getElementById(‘status’).textContent = ‘Done! ’ + cards.length + ’ cards. Tap to check off.’;
+</script>
+
+</body>
+</html>
