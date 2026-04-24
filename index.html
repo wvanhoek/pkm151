@@ -1,99 +1,399 @@
 <!DOCTYPE html>
-
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pokemon 151</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2563eb" />
+  <title>Pokemon 151 Missing Cards Tracker</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      background: #f6f7fb;
+      color: #1f2937;
+    }
+
+    .app {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-top: 0;
+    }
+
+    .subtitle, .small-note {
+      color: #6b7280;
+      line-height: 1.4;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+
+    input, textarea, button {
+      width: 100%;
+      box-sizing: border-box;
+      font: inherit;
+      border-radius: 12px;
+      border: 1px solid #d1d5db;
+      padding: 12px;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    button {
+      border: none;
+      background: #2563eb;
+      color: white;
+      font-weight: 700;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    button.danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .stat {
+      background: #eef2ff;
+      border-radius: 14px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 24px;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .filters button {
+      margin-top: 0;
+      padding: 10px;
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .filters button.active {
+      background: #2563eb;
+      color: white;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+      gap: 14px;
+    }
+
+    .pokemon-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 10px;
+      background: #ffffff;
+    }
+
+    .pokemon-card.done {
+      opacity: 0.55;
+    }
+
+    .pokemon-card img {
+      width: 100%;
+      border-radius: 10px;
+      background: #f3f4f6;
+      display: block;
+    }
+
+    .placeholder {
+      aspect-ratio: 0.716;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      background: #f3f4f6;
+      color: #6b7280;
+      font-size: 13px;
+      text-align: center;
+      padding: 8px;
+    }
+
+    .card-name {
+      margin-top: 8px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .card-number {
+      color: #6b7280;
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    .owned-button {
+      margin-top: 8px;
+      padding: 9px;
+      font-size: 14px;
+    }
+
+    .done .owned-button {
+      background: #16a34a;
+    }
+
+    .empty, .loading, .error {
+      text-align: center;
+      color: #6b7280;
+      padding: 20px;
+    }
+
+    .error {
+      color: #991b1b;
+    }
+
+    @media (max-width: 500px) {
+      .app { padding: 12px; }
+      .stats { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
 </head>
-<body style="background:#111;color:#fff;padding:10px;font-family:sans-serif;">
-<h2 style="color:#FFD700;">Pokemon 151 Checklist</h2>
-<p id="status">Starting...</p>
-<div id="grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;"></div>
-<script>
-document.getElementById('status').textContent = 'Step 1: JS running';
+<body>
+  <div class="app">
+    <h1>Pokemon 151 Missing Cards</h1>
+    <p class="subtitle">Your corrected English 151 missing-card list, with images. Tick cards off as you find them.</p>
 
-var cards = [
-[“003”,“Venusaur ex”,502554],
-[“011”,“Metapod”,502560],
-[“018”,“Pidgeot ex”,516357],
-[“038”,“Ninetales ex”,516072],
-[“065”,“Alakazam ex”,516381],
-[“076”,“Golem ex”,516574],
-[“091”,“Cloyster”,516637],
-[“094”,“Gengar”,516663],
-[“106”,“Hitmonlee”,516675],
-[“124”,“Jynx ex”,516687],
-[“134”,“Vaporeon”,516697],
-[“144”,“Articuno”,516711],
-[“151”,“Mew ex”,516720],
-[“155”,“Big Air Balloon”,516724],
-[“168”,“Ivysaur IR”,516998],
-[“172”,“Caterpie IR”,517002],
-[“174”,“Pikachu IR”,513721],
-[“177”,“Machoke IR”,517007],
-[“178”,“Tangela IR”,517008],
-[“179”,“Mr Mime IR”,517009],
-[“180”,“Omanyte IR”,517010],
-[“182”,“Venusaur ex FA”,517037],
-[“183”,“Charizard ex FA”,517017],
-[“184”,“Blastoise ex FA”,517018],
-[“185”,“Arbok ex FA”,517019],
-[“186”,“Ninetales ex FA”,517020],
-[“187”,“Wigglytuff ex FA”,517038],
-[“188”,“Alakazam ex FA”,517039],
-[“190”,“Zapdos ex FA”,517041],
-[“191”,“Mew ex FA”,517042],
-[“193”,“Daisys Help FA”,517043],
-[“194”,“Erikas Invitation FA”,517044],
-[“195”,“Giovannis FA”,517045],
-[“197”,“Venusaur ex SIR”,517046],
-[“201”,“Alakazam ex SIR”,517047],
-[“203”,“Erikas Invitation SIR”,517049],
-[“204”,“Giovannis SIR”,517050],
-[“205”,“Mew ex Gold”,517051],
-[“206”,“Switch Gold”,517052]
-];
+    <div class="card stats">
+      <div class="stat"><strong id="missingCount">0</strong>Missing</div>
+      <div class="stat"><strong id="foundCount">0</strong>Found</div>
+      <div class="stat"><strong id="percentCount">0%</strong>Found</div>
+    </div>
 
-document.getElementById(‘status’).textContent = ’Step 2: Cards loaded: ’ + cards.length;
+    <div class="card">
+      <input id="searchInput" placeholder="Search name or number, e.g. Mew or 205..." oninput="renderCards()" />
+      <div class="filters">
+        <button id="filterAll" class="active" onclick="setFilter('all')">All</button>
+        <button id="filterMissing" onclick="setFilter('missing')">Missing</button>
+        <button id="filterFound" onclick="setFilter('found')">Found</button>
+      </div>
+    </div>
 
-var grid = document.getElementById(‘grid’);
-var found = {};
-try { found = JSON.parse(localStorage.getItem(‘found’) || ‘{}’); } catch(e) {}
+    <div class="card">
+      <h2>Add extra cards</h2>
+      <p class="small-note">Optional. Add one card per line like: <strong>173 Pikachu IR</strong></p>
+      <textarea id="cardInput" placeholder="173 Pikachu IR"></textarea>
+      <button onclick="addCards()">Add to list</button>
+      <button class="secondary" onclick="exportProgress()">Export backup</button>
+      <button class="danger" onclick="clearEverything()">Reset everything</button>
+    </div>
 
-for (var i = 0; i < cards.length; i++) {
-var nr = cards[i][0];
-var name = cards[i][1];
-var pid = cards[i][2];
+    <div class="card">
+      <div id="status" class="loading">Loading card images...</div>
+      <div id="cardList" class="grid"></div>
+    </div>
+  </div>
 
-var div = document.createElement(‘div’);
-div.style.cssText = ’border-radius:8px;overflow:hidden;cursor:pointer;border:3px solid ’ + (found[nr] ? ‘#22c55e’ : ‘#333’) + ‘;’;
-div.setAttribute(‘data-nr’, nr);
+  <script>
+    const defaultMissingCards = [
+      { number: "003", name: "Venusaur ex", label: "003 Venusaur ex" },
+      { number: "011", name: "Metapod", label: "011 Metapod" },
+      { number: "018", name: "Pidgeot ex", label: "018 Pidgeot ex" },
+      { number: "038", name: "Ninetales ex", label: "038 Ninetales ex" },
+      { number: "065", name: "Alakazam ex", label: "065 Alakazam ex" },
+      { number: "076", name: "Golem ex", label: "076 Golem ex" },
+      { number: "091", name: "Cloyster", label: "091 Cloyster" },
+      { number: "094", name: "Gengar", label: "094 Gengar" },
+      { number: "106", name: "Hitmonlee", label: "106 Hitmonlee" },
+      { number: "124", name: "Jynx ex", label: "124 Jynx ex" },
+      { number: "134", name: "Vaporeon", label: "134 Vaporeon" },
+      { number: "144", name: "Articuno", label: "144 Articuno" },
+      { number: "151", name: "Mew ex", label: "151 Mew ex" },
+      { number: "155", name: "Big Air Balloon", label: "155 Big Air Balloon" },
+      { number: "168", name: "Charmander", label: "168 Charmander IR" },
+      { number: "172", name: "Caterpie", label: "172 Caterpie IR" },
+      { number: "174", name: "Nidoking", label: "174 Nidoking IR" },
+      { number: "177", name: "Machoke", label: "177 Machoke IR" },
+      { number: "178", name: "Tangela", label: "178 Tangela IR" },
+      { number: "179", name: "Mr. Mime", label: "179 Mr. Mime IR" },
+      { number: "180", name: "Omanyte", label: "180 Omanyte IR" },
+      { number: "182", name: "Venusaur ex", label: "182 Venusaur ex FA" },
+      { number: "183", name: "Charizard ex", label: "183 Charizard ex FA" },
+      { number: "184", name: "Blastoise ex", label: "184 Blastoise ex FA" },
+      { number: "185", name: "Arbok ex", label: "185 Arbok ex FA" },
+      { number: "186", name: "Ninetales ex", label: "186 Ninetales ex FA" },
+      { number: "187", name: "Wigglytuff ex", label: "187 Wigglytuff ex FA" },
+      { number: "188", name: "Alakazam ex", label: "188 Alakazam ex FA" },
+      { number: "190", name: "Kangaskhan ex", label: "190 Kangaskhan ex FA" },
+      { number: "191", name: "Jynx ex", label: "191 Jynx ex FA" },
+      { number: "193", name: "Mew ex", label: "193 Mew ex FA" },
+      { number: "194", name: "Bill's Transfer", label: "194 Bill's Transfer FA" },
+      { number: "195", name: "Daisy's Help", label: "195 Daisy's Help FA" },
+      { number: "197", name: "Giovanni's Charisma", label: "197 Giovanni's Charisma FA" },
+      { number: "198", name: "Venusaur ex", label: "198 Venusaur ex SIR" },
+      { number: "201", name: "Alakazam ex", label: "201 Alakazam ex SIR" },
+      { number: "203", name: "Erika's Invitation", label: "203 Erika's Invitation SIR" },
+      { number: "204", name: "Giovanni's Charisma", label: "204 Giovanni's Charisma SIR" },
+      { number: "205", name: "Mew ex", label: "205 Mew ex Gold" },
+      { number: "206", name: "Switch", label: "206 Switch Gold" }
+    ];
 
-var img = document.createElement(‘img’);
-img.src = ‘https://product-images.tcgplayer.com/fit-in/400x558/’ + pid + ‘.jpg’;
-img.style.cssText = ‘width:100%;display:block;’;
-img.alt = name;
+    let cards = JSON.parse(localStorage.getItem("pokemonCardsV2")) || defaultMissingCards;
+    let found = JSON.parse(localStorage.getItem("pokemonFoundV2")) || {};
+    let currentFilter = "all";
+    let imageMap = {};
 
-var label = document.createElement(‘div’);
-label.style.cssText = ‘padding:4px;font-size:10px;background:#222;text-align:center;’;
-label.textContent = nr + ’ ’ + name;
+    function saveData() {
+      localStorage.setItem("pokemonCardsV2", JSON.stringify(cards));
+      localStorage.setItem("pokemonFoundV2", JSON.stringify(found));
+    }
 
-div.appendChild(img);
-div.appendChild(label);
+    function normaliseNumber(value) {
+      return String(value).padStart(3, "0");
+    }
 
-div.onclick = function() {
-var n = this.getAttribute(‘data-nr’);
-if (found[n]) { delete found[n]; this.style.borderColor = ‘#333’; }
-else { found[n] = 1; this.style.borderColor = ‘#22c55e’; }
-try { localStorage.setItem(‘found’, JSON.stringify(found)); } catch(e) {}
-};
+    function parseLine(line) {
+      const trimmed = line.trim();
+      const match = trimmed.match(/^(\d{1,3})\s+(.+)$/);
+      if (!match) return null;
+      const number = normaliseNumber(match[1]);
+      const label = number + " " + match[2].trim();
+      return { number, name: match[2].trim(), label };
+    }
 
-grid.appendChild(div);
-}
+    function addCards() {
+      const input = document.getElementById("cardInput").value;
+      const newCards = input.split("\n").map(parseLine).filter(Boolean);
+      const byLabel = new Map(cards.map(card => [card.label, card]));
+      newCards.forEach(card => byLabel.set(card.label, card));
+      cards = Array.from(byLabel.values()).sort((a, b) => Number(a.number) - Number(b.number));
+      document.getElementById("cardInput").value = "";
+      saveData();
+      renderCards();
+    }
 
-document.getElementById(‘status’).textContent = ‘Done! ’ + cards.length + ’ cards. Tap to check off.’;
-</script>
+    function toggleFound(label) {
+      found[label] = !found[label];
+      saveData();
+      renderCards();
+    }
 
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll(".filters button").forEach(button => button.classList.remove("active"));
+      document.getElementById("filter" + filter.charAt(0).toUpperCase() + filter.slice(1)).classList.add("active");
+      renderCards();
+    }
+
+    function clearEverything() {
+      const confirmed = confirm("Reset everything back to the original missing list?");
+      if (!confirmed) return;
+      cards = defaultMissingCards;
+      found = {};
+      saveData();
+      renderCards();
+    }
+
+    function exportProgress() {
+      const data = { cards, found, exportedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "pokemon-151-progress.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function loadImages() {
+      const status = document.getElementById("status");
+      try {
+        const response = await fetch("https://api.pokemontcg.io/v2/cards?q=set.id:sv3pt5&pageSize=250&select=number,name,images");
+        const result = await response.json();
+        imageMap = {};
+        result.data.forEach(card => {
+          imageMap[normaliseNumber(card.number)] = card.images.small;
+        });
+        status.style.display = "none";
+        renderCards();
+      } catch (error) {
+        status.className = "error";
+        status.textContent = "Could not load images. The tracker still works without them.";
+        renderCards();
+      }
+    }
+
+    function renderCards() {
+      const list = document.getElementById("cardList");
+      const search = document.getElementById("searchInput").value.toLowerCase();
+
+      const visibleCards = cards.filter(card => {
+        const matchesSearch = card.label.toLowerCase().includes(search) || card.number.includes(search);
+        const isFound = !!found[card.label];
+        if (currentFilter === "missing") return matchesSearch && !isFound;
+        if (currentFilter === "found") return matchesSearch && isFound;
+        return matchesSearch;
+      });
+
+      const foundCount = cards.filter(card => found[card.label]).length;
+      const missingCount = cards.length - foundCount;
+      const percent = cards.length ? Math.round((foundCount / cards.length) * 100) : 0;
+
+      document.getElementById("foundCount").textContent = foundCount;
+      document.getElementById("missingCount").textContent = missingCount;
+      document.getElementById("percentCount").textContent = percent + "%";
+
+      if (visibleCards.length === 0) {
+        list.innerHTML = '<div class="empty">No cards to show.</div>';
+        return;
+      }
+
+      list.innerHTML = visibleCards.map(card => {
+        const image = imageMap[card.number];
+        const isFound = !!found[card.label];
+        return `
+          <div class="pokemon-card ${isFound ? 'done' : ''}">
+            ${image ? `<img src="${image}" alt="${card.label}" loading="lazy" />` : `<div class="placeholder">Image loading<br>${card.number}</div>`}
+            <div class="card-name">${card.label.replace(/^\d+\s/, "")}</div>
+            <div class="card-number">#${card.number}</div>
+            <button class="owned-button" onclick="toggleFound(${JSON.stringify(card.label).replace(/"/g, '&quot;')})">${isFound ? 'Found' : 'Mark found'}</button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    saveData();
+    renderCards();
+    loadImages();
+  </script>
 </body>
 </html>
