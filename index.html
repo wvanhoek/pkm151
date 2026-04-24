@@ -245,7 +245,7 @@ const setInfo={"151":{api:"sv3pt5",market:"Scarlet-Violet-151"},skyridge:{api:"e
 function groupFor(n){return n[0]==='H'?'Holos':(+n>=145?'Secret rares':'Normal cards')}
 function variantsFor(n){return n[0]==='H'?['Holo']:(+n>=145?['Holo','Reverse Holo']:['Non Holo','Reverse Holo'])}
 const collections={"151":missing151.split('\n').map(l=>{const [n,...rest]=l.split('|');return{number:n,name:rest.join('|'),group:'Missing cards',variants:['Missing'],owned:{Missing:0}}}),skyridge:skyridgeRaw.split('\n').map(l=>{const [number,name,holo,rev,non]=l.split('|');return{number,name,group:groupFor(number),variants:variantsFor(number),owned:{Holo:+holo,'Reverse Holo':+rev,'Non Holo':+non}}})};
-let currentCollection=localStorage.getItem('currentCollection')||'151',filter='all',images={},progress=JSON.parse(localStorage.getItem('pokemonProgressV4')||'{}');
+let currentCollection=localStorage.getItem('currentCollection')||'151',filter='all',cardData={},progress=JSON.parse(localStorage.getItem('pokemonProgressV4')||'{}');
 document.getElementById('collectionSelect').value=currentCollection;
 function key(c,card,v){return `${c}|${card.number}|${card.name}|${v}`}
 function initialOwned(card,v){return (card.owned&&card.owned[v]>0)}
@@ -253,10 +253,39 @@ function isOwned(card,v){const k=key(currentCollection,card,v);return k in progr
 function setOwned(card,v,val){progress[key(currentCollection,card,v)]=val;localStorage.setItem('pokemonProgressV4',JSON.stringify(progress));renderCards()}
 function changeCollection(){currentCollection=document.getElementById('collectionSelect').value;localStorage.setItem('currentCollection',currentCollection);loadImages();renderCards()}
 function setFilter(f){filter=f;document.querySelectorAll('.filters button').forEach(b=>b.classList.remove('active'));document.getElementById('filter'+f[0].toUpperCase()+f.slice(1)).classList.add('active');renderCards()}
-function marketUrl(card){const set=setInfo[currentCollection].market;const q=encodeURIComponent(`${card.name} ${set} ${card.number}`);return `https://www.cardmarket.com/en/Pokemon/Products/Search?idCategory=51&searchString=${q}`}
+function marketUrl(card){
+  const exact = cardData[apiNumber(card.number)]?.marketUrl;
+  if (exact) return exact;
+  const set=setInfo[currentCollection].market;
+  const q=encodeURIComponent(`${card.name} ${set} ${card.number}`);
+  return `https://www.cardmarket.com/en/Pokemon/Products/Search?idCategory=51&searchString=${q}`;
+}
+function openMarket(url){
+  const opened = window.open(url, '_blank', 'noopener,noreferrer');
+  if (!opened) window.location.href = url;
+}
 function apiNumber(n){return n[0]==='H'?n:n.replace(/^0+/,'')}
-async function loadImages(){const status=document.getElementById('status');status.className='loading';status.style.display='block';status.textContent='Loading card images...';images={};try{const api=setInfo[currentCollection].api;const r=await fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${api}&pageSize=250&select=number,images`);const j=await r.json();(j.data||[]).forEach(c=>images[c.number]=c.images.small);status.style.display='none'}catch(e){status.className='error';status.textContent='Could not load images. Tracker still works.'}renderCards()}
-function renderCards(){const list=document.getElementById('cardList'),search=document.getElementById('searchInput').value.toLowerCase(),cards=collections[currentCollection];let total=0,found=0;cards.forEach(c=>c.variants.forEach(v=>{total++;if(isOwned(c,v))found++}));document.getElementById('foundCount').textContent=found;document.getElementById('missingCount').textContent=total-found;document.getElementById('percentCount').textContent=total?Math.round(found/total*100)+'%':'0%';let html='',lastGroup='';const visible=cards.filter(c=>{const label=(c.number+' '+c.name+' '+c.group).toLowerCase();if(!label.includes(search))return false;const any=c.variants.some(v=>isOwned(c,v)),all=c.variants.every(v=>isOwned(c,v));if(filter==='missing')return !all;if(filter==='found')return any;return true});if(!visible.length){list.innerHTML='<div class="empty">No cards to show.</div>';return}visible.forEach(c=>{if(c.group!==lastGroup){if(lastGroup)html+='</div>';lastGroup=c.group;html+=`<h3>${c.group}</h3><div class="grid">`}const complete=c.variants.every(v=>isOwned(c,v));const img=images[apiNumber(c.number)];html+=`<div class="poke ${complete?'complete':''}">${img?`<img src="${img}" alt="${c.name}" loading="lazy">`:`<div class="ph">Image<br>${c.number}</div>`}<div class="name">${c.name}</div><div class="num">#${c.number}</div>${c.variants.map(v=>{const checked=isOwned(c,v)?'checked':'';const copies=c.owned[v]>1?` (${c.owned[v]} copies)`:'';return `<label class="variant"><input type="checkbox" ${checked} onchange='setOwned(${JSON.stringify(c)},${JSON.stringify(v)},this.checked)'><span>${v}${copies}</span></label>`}).join('')}<a class="cm" href="${marketUrl(c)}" target="_blank" rel="noopener">Cardmarket</a></div>`});list.innerHTML=html+'</div>'}
+async function loadImages(){
+  const status=document.getElementById('status');
+  status.className='loading';
+  status.style.display='block';
+  status.textContent='Loading card images and Cardmarket links...';
+  cardData={};
+  try{
+    const api=setInfo[currentCollection].api;
+    const r=await fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${api}&pageSize=250&select=number,images,cardmarket`);
+    const j=await r.json();
+    (j.data||[]).forEach(c=>{
+      cardData[c.number]={image:c.images?.small||'',marketUrl:c.cardmarket?.url||''};
+    });
+    status.style.display='none';
+  }catch(e){
+    status.className='error';
+    status.textContent='Could not load images/Cardmarket links. Tracker still works.';
+  }
+  renderCards();
+}
+function renderCards(){const list=document.getElementById('cardList'),search=document.getElementById('searchInput').value.toLowerCase(),cards=collections[currentCollection];let total=0,found=0;cards.forEach(c=>c.variants.forEach(v=>{total++;if(isOwned(c,v))found++}));document.getElementById('foundCount').textContent=found;document.getElementById('missingCount').textContent=total-found;document.getElementById('percentCount').textContent=total?Math.round(found/total*100)+'%':'0%';let html='',lastGroup='';const visible=cards.filter(c=>{const label=(c.number+' '+c.name+' '+c.group).toLowerCase();if(!label.includes(search))return false;const any=c.variants.some(v=>isOwned(c,v)),all=c.variants.every(v=>isOwned(c,v));if(filter==='missing')return !all;if(filter==='found')return any;return true});if(!visible.length){list.innerHTML='<div class="empty">No cards to show.</div>';return}visible.forEach(c=>{if(c.group!==lastGroup){if(lastGroup)html+='</div>';lastGroup=c.group;html+=`<h3>${c.group}</h3><div class="grid">`}const complete=c.variants.every(v=>isOwned(c,v));const data=cardData[apiNumber(c.number)]||{};const img=data.image;const url=marketUrl(c);html+=`<div class="poke ${complete?'complete':''}">${img?`<img src="${img}" alt="${c.name}" loading="lazy">`:`<div class="ph">Image<br>${c.number}</div>`}<div class="name">${c.name}</div><div class="num">#${c.number}</div>${c.variants.map(v=>{const checked=isOwned(c,v)?'checked':'';const copies=c.owned[v]>1?` (${c.owned[v]} copies)`:'';return `<label class="variant"><input type="checkbox" ${checked} onchange='setOwned(${JSON.stringify(c)},${JSON.stringify(v)},this.checked)'><span>${v}${copies}</span></label>`}).join('')}<button class="cm" onclick="openMarket('${url.replace(/'/g,'%27')}')">Cardmarket</button></div>`});list.innerHTML=html+'</div>'}
 function exportProgress(){const blob=new Blob([JSON.stringify({progress,currentCollection,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='pokemon-progress.json';a.click();URL.revokeObjectURL(url)}
 loadImages();renderCards();
 </script>
