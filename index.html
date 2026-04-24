@@ -254,20 +254,20 @@ function setOwned(card,v,val){progress[key(currentCollection,card,v)]=val;localS
 function changeCollection(){currentCollection=document.getElementById('collectionSelect').value;localStorage.setItem('currentCollection',currentCollection);loadImages();renderCards()}
 function setFilter(f){filter=f;document.querySelectorAll('.filters button').forEach(b=>b.classList.remove('active'));document.getElementById('filter'+f[0].toUpperCase()+f.slice(1)).classList.add('active');renderCards()}
 function marketUrl(card){
-  // Use exact API URL when available (works well for 151)
   const exact = cardData[apiNumber(card.number)]?.marketUrl;
   if (exact && currentCollection === '151') return exact;
 
-  // Skyridge works better with shorter search terms:
-  // examples: "Raichu sk 27" or "Gengar sk h9"
+  // Skyridge: simpler search works better
+  // Example: "Raikou sk" / "Gengar sk"
   if (currentCollection === 'skyridge') {
-    const shortNumber = card.number.startsWith('H')
-      ? card.number.toLowerCase()
-      : String(parseInt(card.number, 10));
-
-    const q = encodeURIComponent(`${card.name} sk ${shortNumber}`);
+    const q = encodeURIComponent(`${card.name} sk`);
     return `https://www.cardmarket.com/en/Pokemon/Products/Search?idCategory=51&searchString=${q}`;
   }
+
+  const set = setInfo[currentCollection].market;
+  const q = encodeURIComponent(`${card.name} ${set}`);
+  return `https://www.cardmarket.com/en/Pokemon/Products/Search?idCategory=51&searchString=${q}`;
+}
 
   const set=setInfo[currentCollection].market;
   const q=encodeURIComponent(`${card.name} ${set} ${card.number}`);
@@ -278,6 +278,33 @@ function openMarket(url){
   if (!opened) window.location.href = url;
 }
 function apiNumber(n){return n[0]==='H'?n:n.replace(/^0+/,'')}
+function estimatePrice(card){
+  if(currentCollection==='151'){
+    const n=parseInt(card.number.replace(/\\D/g,''));
+    if(n>=198) return '€40–€180';
+    if(n>=182) return '€12–€60';
+    if(n>=168) return '€8–€35';
+    if(n>=150) return '€5–€25';
+    return '€0.50–€8';
+  }
+
+  if(currentCollection==='skyridge'){
+    if(card.number.startsWith('H')) return '€40–€600+';
+
+    const n=parseInt(card.number);
+
+    if(n>=145){
+      if(card.name.toLowerCase().includes('charizard')) return '€1,000–€4,000+';
+      if(card.name.toLowerCase().includes('gengar')) return '€300–€900';
+      return '€150–€800';
+    }
+
+    return '€10–€150';
+  }
+
+  return 'Check market';
+}
+
 async function loadImages(){
   const status=document.getElementById('status');
   status.className='loading';
@@ -298,7 +325,7 @@ async function loadImages(){
   }
   renderCards();
 }
-function renderCards(){const list=document.getElementById('cardList'),search=document.getElementById('searchInput').value.toLowerCase(),cards=collections[currentCollection];let total=0,found=0;cards.forEach(c=>c.variants.forEach(v=>{total++;if(isOwned(c,v))found++}));document.getElementById('foundCount').textContent=found;document.getElementById('missingCount').textContent=total-found;document.getElementById('percentCount').textContent=total?Math.round(found/total*100)+'%':'0%';let html='',lastGroup='';const visible=cards.filter(c=>{const label=(c.number+' '+c.name+' '+c.group).toLowerCase();if(!label.includes(search))return false;const any=c.variants.some(v=>isOwned(c,v)),all=c.variants.every(v=>isOwned(c,v));if(filter==='missing')return !all;if(filter==='found')return any;return true});if(!visible.length){list.innerHTML='<div class="empty">No cards to show.</div>';return}visible.forEach(c=>{if(c.group!==lastGroup){if(lastGroup)html+='</div>';lastGroup=c.group;html+=`<h3>${c.group}</h3><div class="grid">`}const complete=c.variants.every(v=>isOwned(c,v));const data=cardData[apiNumber(c.number)]||{};const img=data.image;const url=marketUrl(c);html+=`<div class="poke ${complete?'complete':''}">${img?`<img src="${img}" alt="${c.name}" loading="lazy">`:`<div class="ph">Image<br>${c.number}</div>`}<div class="name">${c.name}</div><div class="num">#${c.number}</div>${c.variants.map(v=>{const checked=isOwned(c,v)?'checked':'';const copies=c.owned[v]>1?` (${c.owned[v]} copies)`:'';return `<label class="variant"><input type="checkbox" ${checked} onchange='setOwned(${JSON.stringify(c)},${JSON.stringify(v)},this.checked)'><span>${v}${copies}</span></label>`}).join('')}<button class="cm" onclick="openMarket('${url.replace(/'/g,'%27')}')">Cardmarket</button></div>`});list.innerHTML=html+'</div>'}
+function renderCards(){const list=document.getElementById('cardList'),search=document.getElementById('searchInput').value.toLowerCase(),cards=collections[currentCollection];let total=0,found=0;cards.forEach(c=>c.variants.forEach(v=>{total++;if(isOwned(c,v))found++}));document.getElementById('foundCount').textContent=found;document.getElementById('missingCount').textContent=total-found;document.getElementById('percentCount').textContent=total?Math.round(found/total*100)+'%':'0%';let html='',lastGroup='';const visible=cards.filter(c=>{const label=(c.number+' '+c.name+' '+c.group).toLowerCase();if(!label.includes(search))return false;const any=c.variants.some(v=>isOwned(c,v)),all=c.variants.every(v=>isOwned(c,v));if(filter==='missing')return !all;if(filter==='found')return any;return true});if(!visible.length){list.innerHTML='<div class="empty">No cards to show.</div>';return}visible.forEach(c=>{if(c.group!==lastGroup){if(lastGroup)html+='</div>';lastGroup=c.group;html+=`<h3>${c.group}</h3><div class="grid">`}const complete=c.variants.every(v=>isOwned(c,v));const data=cardData[apiNumber(c.number)]||{};const img=data.image;const url=marketUrl(c);html+=`<div class="poke ${complete?'complete':''}">${img?`<img src="${img}" alt="${c.name}" loading="lazy">`:`<div class="ph">Image<br>${c.number}</div>`}<div class="name">${c.name}</div><div class="num">#${c.number}</div><div class="num">NM est: ${estimatePrice(c)}</div>${c.variants.map(v=>{const checked=isOwned(c,v)?'checked':'';const copies=c.owned[v]>1?` (${c.owned[v]} copies)`:'';return `<label class="variant"><input type="checkbox" ${checked} onchange='setOwned(${JSON.stringify(c)},${JSON.stringify(v)},this.checked)'><span>${v}${copies}</span></label>`}).join('')}<button class="cm" onclick="openMarket('${url.replace(/'/g,'%27')}')">Cardmarket</button></div>`});list.innerHTML=html+'</div>'}
 function exportProgress(){const blob=new Blob([JSON.stringify({progress,currentCollection,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='pokemon-progress.json';a.click();URL.revokeObjectURL(url)}
 loadImages();renderCards();
 </script>
