@@ -8,13 +8,16 @@
 <style>
 body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background:#f6f7fb;color:#1f2937}.app{max-width:980px;margin:0 auto;padding:16px}h1{font-size:28px;margin:0 0 8px}h2{font-size:18px;margin:0 0 12px}h3{margin:22px 0 10px}.subtitle,.small{color:#6b7280;line-height:1.4}.card{background:white;border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,0,0,.08)}input,select,button{width:100%;box-sizing:border-box;font:inherit;border-radius:12px;border:1px solid #d1d5db;padding:12px}button{border:0;background:#2563eb;color:white;font-weight:800;margin-top:8px;cursor:pointer}.secondary{background:#e5e7eb;color:#111827}.top{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stat{background:#eef2ff;border-radius:14px;padding:14px;text-align:center}.stat strong{display:block;font-size:24px}.filters{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.filters button{margin-top:0;background:#e5e7eb;color:#111827}.filters .active{background:#2563eb;color:white}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}.poke{border:1px solid #e5e7eb;border-radius:16px;padding:10px;background:white}.poke.complete{opacity:.6}.poke img{width:100%;border-radius:10px;background:#f3f4f6;display:block}.ph{aspect-ratio:.716;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#f3f4f6;color:#6b7280;font-size:13px;text-align:center}.name{margin-top:8px;font-weight:800;font-size:14px}.num{color:#6b7280;font-size:13px;margin-top:2px}.variant{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px;border-radius:10px;background:#f9fafb}.variant input{width:22px;height:22px;padding:0}.variant span{font-size:13px}.cm{display:block;text-align:center;text-decoration:none;border-radius:12px;background:#ff6f00;color:white;font-weight:800;padding:10px;margin-top:9px;font-size:14px}.loading,.empty,.error{text-align:center;color:#6b7280;padding:20px}.error{color:#991b1b}@media(max-width:600px){.top,.stats{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.app{padding:12px}}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 </head>
 <body>
 <div class="app">
 <h1>Pokemon Collection Tracker</h1>
-<p class="subtitle">Choose 151 or Skyridge, track missing variants, view images, and open Cardmarket search links.</p>
+<p class="subtitle">Choose 151 or Skyridge, track missing variants, view images, open Cardmarket, and sync the hunt across phones.</p>
 <div class="card top"><div><h2>Collection</h2><select id="collectionSelect" onchange="changeCollection()"><option value="151">Pokemon 151</option><option value="skyridge">Skyridge</option></select></div><div><h2>Search</h2><input id="searchInput" placeholder="Search name or number..." oninput="renderCards()" /></div></div>
 <div class="card stats"><div class="stat"><strong id="missingCount">0</strong>Missing</div><div class="stat"><strong id="foundCount">0</strong>Found</div><div class="stat"><strong id="percentCount">0%</strong>Complete</div></div>
+<div class="card"><h2>Team sync</h2><p id="syncStatus" class="small">Sync not configured yet. This phone is saving locally.</p><p class="small">After Firebase setup, everyone who opens the same deployed app will share the same hunt progress.</p></div>
 <div class="card"><div class="filters"><button id="filterAll" class="active" onclick="setFilter('all')">All</button><button id="filterMissing" onclick="setFilter('missing')">Missing</button><button id="filterFound" onclick="setFilter('found')">Found</button></div><button class="secondary" onclick="exportProgress()">Export backup</button></div>
 <div class="card"><div id="status" class="loading">Loading card images...</div><div id="cardList"></div></div>
 </div>
@@ -246,11 +249,65 @@ function groupFor(n){return n[0]==='H'?'Holos':(+n>=145?'Secret rares':'Normal c
 function variantsFor(n){return n[0]==='H'?['Holo']:(+n>=145?['Holo','Reverse Holo']:['Non Holo','Reverse Holo'])}
 const collections={"151":missing151.split('\n').map(l=>{const [n,...rest]=l.split('|');return{number:n,name:rest.join('|'),group:'Missing cards',variants:['Missing'],owned:{Missing:0}}}),skyridge:skyridgeRaw.split('\n').map(l=>{const [number,name,holo,rev,non]=l.split('|');return{number,name,group:groupFor(number),variants:variantsFor(number),owned:{Holo:+holo,'Reverse Holo':+rev,'Non Holo':+non}}})};
 let currentCollection=localStorage.getItem('currentCollection')||'151',filter='all',cardData={},progress=JSON.parse(localStorage.getItem('pokemonProgressV4')||'{}');
+
+// FIREBASE SETUP
+// Step 1: Create a Firebase project + Realtime Database.
+// Step 2: Replace the values below with your Firebase web app config.
+// Step 3: Set firebaseEnabled to true.
+const firebaseEnabled = true;
+const firebaseConfig = {
+  apiKey: "AIzaSyAOHHFBmXwPVOfIePsOd518a5ujYLmQdy4",
+  authDomain: "pokemon-hunt-83f56.firebaseapp.com",
+  databaseURL: "https://pokemon-hunt-83f56-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "pokemon-hunt-83f56",
+  storageBucket: "pokemon-hunt-83f56.firebasestorage.app",
+  messagingSenderId: "120835943229",
+  appId: "1:120835943229:web:058b63ba368b541b1eb354"
+};
+const huntId = "vanhoek-pokemon-hunt";
+let database = null;
+let remoteProgressRef = null;
+let applyingRemoteUpdate = false;
+
+function initSync(){
+  const status = document.getElementById('syncStatus');
+  if(!firebaseEnabled){
+    status.textContent = 'Sync not configured yet. This phone is saving locally.';
+    return;
+  }
+
+  try{
+    firebase.initializeApp(firebaseConfig);
+    database = firebase.database();
+    remoteProgressRef = database.ref('hunts/' + huntId + '/progress');
+
+    remoteProgressRef.on('value', snapshot => {
+      applyingRemoteUpdate = true;
+      progress = snapshot.val() || {};
+      localStorage.setItem('pokemonProgressV4', JSON.stringify(progress));
+      status.textContent = 'Live sync active. Team progress is shared across phones.';
+      renderCards();
+      applyingRemoteUpdate = false;
+    });
+  }catch(error){
+    status.textContent = 'Sync setup error. Local saving still works.';
+    console.error(error);
+  }
+}
 document.getElementById('collectionSelect').value=currentCollection;
 function key(c,card,v){return `${c}|${card.number}|${card.name}|${v}`}
 function initialOwned(card,v){return (card.owned&&card.owned[v]>0)}
 function isOwned(card,v){const k=key(currentCollection,card,v);return k in progress?progress[k]:initialOwned(card,v)}
-function setOwned(card,v,val){progress[key(currentCollection,card,v)]=val;localStorage.setItem('pokemonProgressV4',JSON.stringify(progress));renderCards()}
+function setOwned(card,v,val){
+  progress[key(currentCollection,card,v)] = val;
+  localStorage.setItem('pokemonProgressV4', JSON.stringify(progress));
+
+  if(remoteProgressRef && !applyingRemoteUpdate){
+    remoteProgressRef.update(progress);
+  }
+
+  renderCards();
+}
 function changeCollection(){currentCollection=document.getElementById('collectionSelect').value;localStorage.setItem('currentCollection',currentCollection);loadImages();renderCards()}
 function setFilter(f){filter=f;document.querySelectorAll('.filters button').forEach(b=>b.classList.remove('active'));document.getElementById('filter'+f[0].toUpperCase()+f.slice(1)).classList.add('active');renderCards()}
 function marketUrl(card){
@@ -280,7 +337,7 @@ function openMarket(url){
 function apiNumber(n){return n[0]==='H'?n:n.replace(/^0+/,'')}
 function estimatePrice(card){
   if(currentCollection==='151'){
-    const n=parseInt(card.number.replace(/\\D/g,''));
+    const n=parseInt(card.number.replace(/\D/g,''));
     if(n>=198) return '€40–€180';
     if(n>=182) return '€12–€60';
     if(n>=168) return '€8–€35';
@@ -327,7 +384,9 @@ async function loadImages(){
 }
 function renderCards(){const list=document.getElementById('cardList'),search=document.getElementById('searchInput').value.toLowerCase(),cards=collections[currentCollection];let total=0,found=0;cards.forEach(c=>c.variants.forEach(v=>{total++;if(isOwned(c,v))found++}));document.getElementById('foundCount').textContent=found;document.getElementById('missingCount').textContent=total-found;document.getElementById('percentCount').textContent=total?Math.round(found/total*100)+'%':'0%';let html='',lastGroup='';const visible=cards.filter(c=>{const label=(c.number+' '+c.name+' '+c.group).toLowerCase();if(!label.includes(search))return false;const any=c.variants.some(v=>isOwned(c,v)),all=c.variants.every(v=>isOwned(c,v));if(filter==='missing')return !all;if(filter==='found')return any;return true});if(!visible.length){list.innerHTML='<div class="empty">No cards to show.</div>';return}visible.forEach(c=>{if(c.group!==lastGroup){if(lastGroup)html+='</div>';lastGroup=c.group;html+=`<h3>${c.group}</h3><div class="grid">`}const complete=c.variants.every(v=>isOwned(c,v));const data=cardData[apiNumber(c.number)]||{};const img=data.image;const url=marketUrl(c);html+=`<div class="poke ${complete?'complete':''}">${img?`<img src="${img}" alt="${c.name}" loading="lazy">`:`<div class="ph">Image<br>${c.number}</div>`}<div class="name">${c.name}</div><div class="num">#${c.number}</div><div class="num">NM est: ${estimatePrice(c)}</div>${c.variants.map(v=>{const checked=isOwned(c,v)?'checked':'';const copies=c.owned[v]>1?` (${c.owned[v]} copies)`:'';return `<label class="variant"><input type="checkbox" ${checked} onchange='setOwned(${JSON.stringify(c)},${JSON.stringify(v)},this.checked)'><span>${v}${copies}</span></label>`}).join('')}<button class="cm" onclick="openMarket('${url.replace(/'/g,'%27')}')">Cardmarket</button></div>`});list.innerHTML=html+'</div>'}
 function exportProgress(){const blob=new Blob([JSON.stringify({progress,currentCollection,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='pokemon-progress.json';a.click();URL.revokeObjectURL(url)}
-loadImages();renderCards();
+initSync();
+loadImages();
+renderCards();
 </script>
 </body>
 </html>
