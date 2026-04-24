@@ -254,8 +254,21 @@ function setOwned(card,v,val){progress[key(currentCollection,card,v)]=val;localS
 function changeCollection(){currentCollection=document.getElementById('collectionSelect').value;localStorage.setItem('currentCollection',currentCollection);loadImages();renderCards()}
 function setFilter(f){filter=f;document.querySelectorAll('.filters button').forEach(b=>b.classList.remove('active'));document.getElementById('filter'+f[0].toUpperCase()+f.slice(1)).classList.add('active');renderCards()}
 function marketUrl(card){
+  // Use exact API URL when available (works well for 151)
   const exact = cardData[apiNumber(card.number)]?.marketUrl;
-  if (exact) return exact;
+  if (exact && currentCollection === '151') return exact;
+
+  // Skyridge works better with shorter search terms:
+  // examples: "Raichu sk 27" or "Gengar sk h9"
+  if (currentCollection === 'skyridge') {
+    const shortNumber = card.number.startsWith('H')
+      ? card.number.toLowerCase()
+      : String(parseInt(card.number, 10));
+
+    const q = encodeURIComponent(`${card.name} sk ${shortNumber}`);
+    return `https://www.cardmarket.com/en/Pokemon/Products/Search?idCategory=51&searchString=${q}`;
+  }
+
   const set=setInfo[currentCollection].market;
   const q=encodeURIComponent(`${card.name} ${set} ${card.number}`);
   return `https://www.cardmarket.com/en/Pokemon/Products/Search?idCategory=51&searchString=${q}`;
